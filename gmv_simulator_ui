@@ -1,0 +1,165 @@
+const body = $input.first().json.body ?? $input.first().json ?? $json.body ?? $json;
+
+function toRatio(v, d = 10) {
+  const x = Number(v ?? d);
+  if (!Number.isFinite(x)) return d / 100;
+  return x > 1 ? x / 100 : x;
+}
+
+const upImp = toRatio(body.upRate, 10);
+const downImp = toRatio(body.downRate, 10);
+const churnImp = toRatio(body.churnRate, 10);
+const convImp = toRatio(body.convRate, 10);
+
+const DATA = {
+  segments: {
+    "1": { n: 40182, states: [
+      { to_seg: 1, p: 0.4486337165895177, avg_v: 7406641.682087979, kind: "stay" },
+      { to_seg: 2, p: 0.16509880045791647, avg_v: 1477495.106119988, kind: "down" },
+      { to_seg: 3, p: 0.0817032502115375, avg_v: 796180.0925982334, kind: "down" },
+      { to_seg: 4, p: 0.042855009705838436, avg_v: 496913.51219512196, kind: "down" },
+      { to_seg: 5, p: 0.04641381713204917, avg_v: 297586.690616622, kind: "down" },
+      { to_seg: 6, p: 0.056965805584590114, avg_v: 98656.84709480123, kind: "down" },
+      { to_seg: 99, p: 0.1583296003185506, avg_v: 0, kind: "churn" }
+    ]},
+    "2": { n: 55432, states: [
+      { to_seg: 1, p: 0.12052604993505556, avg_v: 3674873.7873072894, kind: "up" },
+      { to_seg: 2, p: 0.186282291817001, avg_v: 1416123.5373813675, kind: "stay" },
+      { to_seg: 3, p: 0.1430581613508443, avg_v: 788645.782849937, kind: "down" },
+      { to_seg: 4, p: 0.08946096117765912, avg_v: 494961.7441016334, kind: "down" },
+      { to_seg: 5, p: 0.10890821186318372, avg_v: 295725.2772900447, kind: "down" },
+      { to_seg: 6, p: 0.1283193823062491, avg_v: 97877.9593701673, kind: "down" },
+      { to_seg: 99, p: 0.22344494155000721, avg_v: 0, kind: "churn" }
+    ]},
+    "3": { n: 70075, states: [
+      { to_seg: 1, p: 0.04518016410988227, avg_v: 3527799.242893241, kind: "up" },
+      { to_seg: 2, p: 0.11068141277202997, avg_v: 1375933.486204229, kind: "up" },
+      { to_seg: 3, p: 0.12880485194434535, avg_v: 775703.8580766674, kind: "stay" },
+      { to_seg: 4, p: 0.10747056724937568, avg_v: 493359.36011153896, kind: "down" },
+      { to_seg: 5, p: 0.14931145201569745, avg_v: 293743.8199369206, kind: "down" },
+      { to_seg: 6, p: 0.19269354263289332, avg_v: 98072.49255720951, kind: "down" },
+      { to_seg: 99, p: 0.26585800927577596, avg_v: 0, kind: "churn" }
+    ]},
+    "4": { n: 78037, states: [
+      { to_seg: 1, p: 0.02343760011276702, avg_v: 3501095.6757791145, kind: "up" },
+      { to_seg: 2, p: 0.060561015928341684, avg_v: 1359797.0810410494, kind: "up" },
+      { to_seg: 3, p: 0.09213578174455707, avg_v: 767831.1347705146, kind: "up" },
+      { to_seg: 4, p: 0.09914527724028345, avg_v: 491425.8751454052, kind: "stay" },
+      { to_seg: 5, p: 0.1668183041377808, avg_v: 290379.5275003841, kind: "down" },
+      { to_seg: 6, p: 0.2569550341504671, avg_v: 95883.94120287253, kind: "down" },
+      { to_seg: 99, p: 0.3009469866858029, avg_v: 0, kind: "churn" }
+    ]},
+    "5": { n: 179925, states: [
+      { to_seg: 1, p: 0.011860497429484508, avg_v: 3501791.831302718, kind: "up" },
+      { to_seg: 2, p: 0.03245796859802696, avg_v: 1348472.4148972603, kind: "up" },
+      { to_seg: 3, p: 0.05557315548145061, avg_v: 761561.2182218222, kind: "up" },
+      { to_seg: 4, p: 0.0696401278310407, avg_v: 486371.2629688747, kind: "up" },
+      { to_seg: 5, p: 0.15107405863554257, avg_v: 285608.7784563314, kind: "stay" },
+      { to_seg: 6, p: 0.3288258996804224, avg_v: 90808.79913460888, kind: "down" },
+      { to_seg: 99, p: 0.35056829234403225, avg_v: 0, kind: "churn" }
+    ]},
+    "6": {
+      n: 696167,
+      p_conv: 0.10021158716227571,
+      avg_conv: 341515.0801416203,
+      avg_non: 62916.84353203928
+    }
+  },
+  meta: {
+    q1_monthly_gmv_one: {
+      "2026-01": 89429371291,
+      "2026-02": 78710279985,
+      "2026-03": 91488022256
+    },
+    q1_total_gmv_one: 259627673532
+  }
+};
+
+function segUpliftTwo(segNo) {
+  const seg = DATA.segments[String(segNo)];
+  const n = seg.n;
+  const states = seg.states;
+  let ev0 = 0;
+  for (const st of states) ev0 += st.p * st.avg_v;
+
+  let weighted = [];
+  for (const st of states) {
+    let w = st.p;
+    if (segNo === 1) {
+      if (st.kind === 'down') w *= (1 - downImp);
+      if (st.kind === 'churn') w *= (1 - churnImp);
+    } else {
+      if (st.kind === 'up') w *= (1 + upImp);
+      if (st.kind === 'down') w *= (1 - downImp);
+      if (st.kind === 'churn') w *= (1 - churnImp);
+    }
+    weighted.push({ w, avg_v: st.avg_v });
+  }
+
+  const z = weighted.reduce((a, b) => a + b.w, 0);
+  let ev1 = 0;
+  for (const st of weighted) ev1 += (st.w / z) * st.avg_v;
+  return (ev1 - ev0) * n;
+}
+
+function seg6UpliftTwo() {
+  const s6 = DATA.segments['6'];
+  const additionalUsers = s6.n * s6.p_conv * convImp;
+  const delta = Math.max(s6.avg_conv - s6.avg_non, 0);
+  return additionalUsers * delta;
+}
+
+const segmentResults = [];
+for (let s = 1; s <= 5; s++) {
+  const upliftTwo = segUpliftTwo(s);
+  segmentResults.push({
+    segment: `Seg${s}`,
+    policy: s === 1 ? '하락/이탈 방어' : '상향+하락+이탈',
+    uplift_two_sided_won: upliftTwo,
+    uplift_one_sided_won: upliftTwo / 2
+  });
+}
+
+const s6Two = seg6UpliftTwo();
+segmentResults.push({
+  segment: 'Seg6',
+  policy: '단면→양면 자연전환',
+  uplift_two_sided_won: s6Two,
+  uplift_one_sided_won: s6Two / 2
+});
+
+segmentResults.sort((a, b) => b.uplift_one_sided_won - a.uplift_one_sided_won);
+
+const totalTwo = segmentResults.reduce((a, b) => a + b.uplift_two_sided_won, 0);
+const totalOne = segmentResults.reduce((a, b) => a + b.uplift_one_sided_won, 0);
+
+const base = DATA.meta.q1_total_gmv_one;
+const monthly = DATA.meta.q1_monthly_gmv_one;
+const monthlyAlloc = Object.entries(monthly).map(([month, actual]) => {
+  const uplift = base > 0 ? totalOne * (actual / base) : 0;
+  return {
+    month,
+    actual_gmv_one_sided_won: actual,
+    uplift_one_sided_won: uplift,
+    projected_gmv_one_sided_won: actual + uplift
+  };
+});
+
+return [{
+  json: {
+    input: {
+      upRate: upImp,
+      downRate: downImp,
+      churnRate: churnImp,
+      convRate: convImp
+    },
+    summary: {
+      uplift_two_sided_won: totalTwo,
+      uplift_one_sided_won: totalOne,
+      q1_actual_gmv_one_sided_won: base,
+      uplift_rate_vs_q1_actual: base > 0 ? totalOne / base : 0
+    },
+    segment_results: segmentResults,
+    monthly_projection: monthlyAlloc
+  }
+}];
